@@ -6,10 +6,10 @@ plugins {
 }
 
 android {
-    namespace = "com.mantra.remoteshooting"
+    namespace = "community.auroville.secondtake.remote"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.mantra.remoteshooting"
+        applicationId = "community.auroville.secondtake.remote"
         minSdk = 26
         targetSdk = 35
         versionCode = appVersion

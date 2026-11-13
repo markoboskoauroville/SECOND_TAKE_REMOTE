@@ -1,4 +1,4 @@
-package com.mantra.remoteshooting
+package community.auroville.secondtake.remote
 
 import org.json.JSONArray
 import org.json.JSONObject

@@ -1,6 +1,6 @@
-# Remote shooting protocol, version 1
+# Second Take protocol, version 1
 
-A shooting guide (a Mac app) offers this small HTTP API; the Android app "Remote Shooting (Mantra)" is its remote
+A shooting guide (a Mac app) offers this small HTTP API; the Android app "Second Take Remote (Mantra)" is its remote
 control. The phone carries all controls and all text; the guide's screen shows only pictures (the clip during watch,
 the camera during live and recording). Shot lists and texts come from the guide at run time; the phone has none built in.
 

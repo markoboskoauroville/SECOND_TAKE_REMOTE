@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="Remote Shooting (Mantra)"
+        android:label="Second Take Remote (Mantra)"
         android:icon="@android:drawable/ic_menu_camera"
         android:theme="@style/App"
         android:networkSecurityConfig="@xml/network"

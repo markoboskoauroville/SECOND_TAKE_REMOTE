@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A fake shooting guide for testing the Remote Shooting app. Loopback only. Records nothing."""
+"""A fake shooting guide for testing the Second Take app. Loopback only. Records nothing."""
 import json, sys, time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 S = [dict(n=i, title=t, code=c, say=s, secs=45) for i, (t, c, s) in enumerate([

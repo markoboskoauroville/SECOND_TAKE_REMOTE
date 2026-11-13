@@ -1,4 +1,4 @@
-package com.mantra.remoteshooting
+package community.auroville.secondtake.remote
 
 import android.app.Activity
 import android.app.AlertDialog
