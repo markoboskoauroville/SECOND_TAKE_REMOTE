@@ -7,7 +7,7 @@ screen kept on, no sound. Package community.auroville.secondtake.remote. CAMERA 
 Build: only by the GitHub workflow .github/workflows/android.yml on a push to main (android/gradle.properties appVersion is the one
 number); release v<N> is Latest; secret ANDROID_DEBUG_KEYSTORE_B64 keeps updates installing over each other. Never gradlew on the Mac.
 
-Phone: top bar shows the connection (tap to enter address:port and pairing code; known guides are remembered). Middle: shot
+Phone: top bar shows the connection (shows the connection; long-press adds an address). Middle: shot
 number, code, title, say text, takes. Bottom, centred: WATCH, LIVE, RECORD/STOP (red with elapsed time), AGAIN, NEXT; SHOTS jumps.
 
 mock/guide.py is a loopback test guide (no recording). v2: no codes; the phone finds the guide itself (last address, 127.0.0.1:8965, Bonjour _secondtake._tcp); long-press the top bar adds an address.

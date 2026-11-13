@@ -4,7 +4,7 @@ A shooting guide (a Mac app) offers this small HTTP API; the Android app "Second
 control. The phone carries all controls and all text; the guide's screen shows only pictures (the clip during watch,
 the camera during live and recording). Shot lists and texts come from the guide at run time; the phone has none built in.
 
-Plain HTTP, JSON, UTF-8. No codes, no pairing: a guide that answers is trusted on its network. Finding the guide: the phone tries, by itself, the last address that worked, `127.0.0.1:8965` (USB with adb reverse) and Bonjour `_secondtake._tcp` on the Wi-Fi; a guide is any host whose GET /status answers JSON with a `protocol` field. Several answering: the phone shows a one-tap list of names. A guide should advertise `_secondtake._tcp` with its port. Reaching the guide: same Wi-Fi (its LAN address), a VPN address, or USB with `adb reverse tcp:PORT tcp:PORT` (then
+Plain HTTP, JSON, UTF-8. No codes, no pairing: a guide that answers is trusted on its network. Finding the guide: the phone tries, by itself, the last address that worked, `127.0.0.1:8965` (USB with adb reverse) and Bonjour `_secondtake._tcp` on the Wi-Fi; a guide is any host whose GET /status answers JSON with a `protocol` field (an `app` field is accepted too, name taken from it). Several answering: the phone shows a one-tap list of names. A guide should advertise `_secondtake._tcp` with its port. Reaching the guide: same Wi-Fi (its LAN address), a VPN address, or USB with `adb reverse tcp:PORT tcp:PORT` (then
 the phone uses `127.0.0.1:PORT`). A guide should listen only where it must (LAN or VPN address, never open to the world).
 
 | Call | Answer / body | Meaning |

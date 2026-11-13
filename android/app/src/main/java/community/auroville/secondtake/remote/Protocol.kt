@@ -34,9 +34,9 @@ class Guide(val base: String) {
     /** The one who answers GET /status with a "protocol" field is a Second Take guide. */
     fun status(): Status {
         val j = JSONObject(call("GET", "/status"))
-        if (!j.has("protocol")) throw IllegalStateException("not a Second Take guide")
+        if (!j.has("protocol") && !j.has("app")) throw IllegalStateException("not a Second Take guide")
         return Status(
-            j.optString("name", ""), j.optString("mode", "idle"), j.optInt("shot", 0),
+            j.optString("name", j.optString("app", "")), j.optString("mode", "idle"), j.optInt("shot", 0),
             j.optInt("shots", 0), j.optInt("takes", 0), j.optInt("elapsed", 0)
         )
     }
