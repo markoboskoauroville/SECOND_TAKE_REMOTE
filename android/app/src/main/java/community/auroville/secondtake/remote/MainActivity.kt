@@ -104,7 +104,8 @@ class MainActivity : Activity() {
         root.addView(scroll)
 
         list = key("Shots", 44, 13f).apply { background = box(dark); setOnClickListener { pickShot() } }
-        root.addView(list.also { (it.layoutParams as LinearLayout.LayoutParams).apply { width = -1 } })
+        list.layoutParams = LinearLayout.LayoutParams(-1, dp(44)).apply { setMargins(dp(5), dp(5), dp(5), dp(5)) }
+        root.addView(list)
 
         // bottom, centred: WATCH LIVE / RECORD-STOP / AGAIN NEXT
         val r1 = LinearLayout(this).apply { gravity = Gravity.CENTER }
@@ -223,7 +224,7 @@ class MainActivity : Activity() {
                 setOnClickListener { addr.setText(k); code.setText(prefs.getString("code:$k", "") ?: "") }
             })
         }
-        AlertDialog.Builder(this).setTitle("Connect to the shooting guide").setView(col)
+        AlertDialog.Builder(this).setTitle("Connect to the Second Take guide").setView(col)
             .setPositiveButton("Connect") { _, _ ->
                 val a = addr.text.toString().trim().removePrefix("http://").trimEnd('/')
                 if (a.isNotEmpty()) use(a, code.text.toString().trim())
