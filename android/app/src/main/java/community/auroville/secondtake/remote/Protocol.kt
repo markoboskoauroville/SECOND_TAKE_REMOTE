@@ -42,7 +42,8 @@ class Guide(val base: String, val code: String) {
     }
 
     fun shots(): List<Shot> {
-        val a = JSONArray(call("GET", "/shots"))
+        val raw = call("GET", "/shots").trim()
+        val a = if (raw.startsWith("[")) JSONArray(raw) else JSONObject(raw).optJSONArray("shots") ?: JSONArray()
         return (0 until a.length()).map {
             val o = a.getJSONObject(it)
             Shot(o.optInt("n", it + 1), o.optString("title", ""), o.optString("code", ""), o.optString("say", ""), o.optInt("secs", 0))

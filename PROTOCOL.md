@@ -11,7 +11,7 @@ the phone uses `127.0.0.1:PORT`). A guide should listen only where it must (LAN 
 | Call | Answer / body | Meaning |
 |---|---|---|
 | GET /status | `{"protocol":1,"name":"Guide name","mode":"idle","shot":3,"shots":11,"takes":2,"elapsed":0}` | mode is `idle`, `watch`, `live` or `recording`; shot is the current shot number n; elapsed is seconds of the running recording |
-| GET /shots | `[{"n":1,"title":"...","code":"TR01","say":"...","secs":45}]` | the list, in order; code and secs may be empty or 0 |
+| GET /shots | `[{"n":1,"title":"...","code":"TR01","say":"...","secs":45}]` | the list, in order (a bare array, or an object {"shots":[...]}); code and secs may be empty or 0 |
 | POST /watch | `{}` | play the current shot's reference picture full screen on the guide's screen |
 | POST /live | `{}` | show the live camera picture full screen (framing before recording) |
 | POST /record | `{}` | start recording the current shot (mode becomes recording) |
