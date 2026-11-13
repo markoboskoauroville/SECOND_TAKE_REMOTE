@@ -59,6 +59,7 @@ class MainActivity : Activity() {
     private lateinit var watch: Button
     private lateinit var live: Button
     private lateinit var rec: Button
+    private lateinit var mute: Button
     private lateinit var again: Button
     private lateinit var next: Button
     private lateinit var list: Button
@@ -117,8 +118,8 @@ class MainActivity : Activity() {
 
         // bottom, centred: WATCH LIVE / RECORD-STOP / AGAIN NEXT
         val r1 = LinearLayout(this).apply { gravity = Gravity.CENTER }
-        watch = key("Watch", 64, 20f); live = key("Live", 64, 20f)
-        r1.addView(watch); r1.addView(live)
+        watch = key("Watch", 64, 17f); live = key("Live", 64, 17f); mute = key("Mute", 64, 17f)
+        r1.addView(watch); r1.addView(live); r1.addView(mute)
         val r2 = LinearLayout(this).apply { gravity = Gravity.CENTER }
         rec = key("Record", 96, 30f)
         r2.addView(rec)
@@ -131,6 +132,11 @@ class MainActivity : Activity() {
         watch.setOnClickListener { send("watch") }
         live.setOnClickListener { send("live") }
         rec.setOnClickListener { send(if (status?.mode == "recording") "stop" else "record") }
+        mute.setOnClickListener {
+            val g = guide ?: return@setOnClickListener
+            val want = !(status?.muted ?: true)
+            io.execute { try { g.mute(want) } catch (e: Exception) { ui.post { failure = "Command failed"; render() } } }
+        }
         again.setOnClickListener { send("again") }
         next.setOnClickListener { send("next") }
 
@@ -198,13 +204,16 @@ class MainActivity : Activity() {
         ui.post {
             if (guide != null && online) return@post
             found.clear(); found.putAll(hits)
+            // The same Mac answers on several interfaces: one entry per name, the first candidate wins.
+            val byName = LinkedHashMap<String, String>()
+            cands.forEach { a -> hits[a]?.let { n -> if (!byName.containsKey(n)) byName[n] = a } }
             when {
-                hits.size == 1 -> use(hits.keys.first())
-                hits.size > 1 && !offered -> {
+                byName.size == 1 -> use(byName.values.first())
+                byName.size > 1 && !offered -> {
                     offered = true
-                    val addrs = hits.keys.toList()
+                    val addrs = byName.values.toList()
                     AlertDialog.Builder(this).setTitle("Which Mac?")
-                        .setItems(addrs.map { hits[it] ?: it }.toTypedArray()) { _, i -> use(addrs[i]) }
+                        .setItems(byName.keys.toTypedArray()) { _, i -> use(addrs[i]) }
                         .setOnDismissListener { offered = false }.show()
                 }
             }
@@ -266,6 +275,8 @@ class MainActivity : Activity() {
         sayView.text = cur?.say ?: ""
         infoView.text = if (s != null && online) "Takes ${s.takes}" + (if (cur != null && cur.secs > 0) "  ·  about ${cur.secs} sec" else "") else ""
 
+        val msg = s?.message ?: ""
+        if (msg.isNotEmpty() && online) infoView.text = infoView.text.toString() + "\n" + msg
         val recording = online && s?.mode == "recording"
         val sec = if (recording) maxOf(s!!.elapsed, if (s.elapsed == 0) ((System.currentTimeMillis() - localRecStart) / 1000).toInt() else 0) else 0
         rec.text = if (recording) "Stop  ${mm(sec)}" else "Record"
@@ -275,9 +286,20 @@ class MainActivity : Activity() {
             bt.background = box(if (!on) dark else if (active) color else Color.parseColor("#4A5058"))
             bt.alpha = if (on) 1f else 0.5f
         }
+        val muted = s?.muted ?: true
+        mute.text = if (muted) "Unmute" else "Mute"
+        style(mute, on && !muted, green)
         style(watch, mode == "watch", green); style(live, mode == "live", amber)
         style(again, false, grey); style(next, false, grey)
         list.alpha = if (on) 1f else 0.5f
+        top.contentDescription = top.text
+        modeView.contentDescription = "Mode " + modeView.text
+        counter.contentDescription = counter.text
+        codeView.contentDescription = "Code " + codeView.text
+        titleView.contentDescription = "Title " + titleView.text
+        sayView.contentDescription = "Say " + sayView.text
+        infoView.contentDescription = "Info " + infoView.text
+        listOf(watch, live, mute, rec, again, next, list).forEach { it.contentDescription = it.text }
     }
 
     private fun pickShot() {

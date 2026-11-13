@@ -9,7 +9,7 @@ import java.net.URL
 data class Shot(val n: Int, val title: String, val code: String, val say: String, val secs: Int)
 
 /** GET /status. mode is idle, watch, live or recording. */
-data class Status(val name: String, val mode: String, val shot: Int, val shots: Int, val takes: Int, val elapsed: Int)
+data class Status(val name: String, val mode: String, val shot: Int, val shots: Int, val takes: Int, val elapsed: Int, val muted: Boolean = false, val message: String = "")
 
 /** The wire is described in PROTOCOL.md. Plain HTTP, JSON, no codes. */
 class BusyException(val owner: String) : Exception("in use by $owner")
@@ -44,7 +44,8 @@ class Guide(val base: String, private val id: String = "", private val deviceNam
         if (!j.has("protocol") && !j.has("app")) throw IllegalStateException("not a Second Take guide")
         return Status(
             j.optString("name", j.optString("app", "")), j.optString("mode", "idle"), j.optInt("shot", 0),
-            j.optInt("shots", 0), j.optInt("takes", 0), j.optInt("elapsed", 0)
+            j.optInt("shots", 0), j.optInt("takes", 0), j.optInt("elapsed", 0),
+            j.optBoolean("muted", false), j.optString("message", "")
         )
     }
 
@@ -56,6 +57,8 @@ class Guide(val base: String, private val id: String = "", private val deviceNam
             Shot(o.optInt("n", it + 1), o.optString("title", ""), o.optString("code", ""), o.optString("say", ""), o.optInt("secs", 0))
         }
     }
+
+    fun mute(on: Boolean) { call("POST", "/mute", "{\"on\":$on}") }
 
     /** watch, live, record, stop, next, again; and shot with {"n":N}. */
     fun command(name: String, n: Int? = null) {

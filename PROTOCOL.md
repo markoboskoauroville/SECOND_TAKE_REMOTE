@@ -11,6 +11,7 @@ the phone uses `127.0.0.1:PORT`). A guide should listen only where it must (LAN 
 |---|---|---|
 | GET /status | `{"protocol":1,"name":"Guide name","mode":"idle","shot":3,"shots":11,"takes":2,"elapsed":0}` | mode is `idle`, `watch`, `live` or `recording`; shot is the current shot number n; elapsed is seconds of the running recording |
 | GET /shots | `[{"n":1,"title":"...","code":"TR01","say":"...","secs":45}]` | the list, in order (a bare array, or an object {"shots":[...]}); code and secs may be empty or 0 |
+| POST /mute | `{"on":true}` | mute or unmute the clip sound on the guide; /status `muted` says which |
 | POST /watch | `{}` | play the current shot's reference picture full screen on the guide's screen |
 | POST /live | `{}` | show the live camera picture full screen (framing before recording) |
 | POST /record | `{}` | start recording the current shot (mode becomes recording) |
@@ -28,3 +29,5 @@ remote whose GET /status reaches a free guide owns it; its one-second /status po
 asked in the last 5 seconds, any other remote gets `423` with `{"busy":true,"owner":"Pixel 7"}` (on every call), and shows
 "IN USE BY Pixel 7" while it looks for another free guide. A guide with no request for 5 seconds is free again. The app lets go
 by going quiet: after 30 seconds in the background it stops polling.
+
+`/status` may also carry `muted` (bool) and `message` (text such as "take 1 discarded"); the phone shows both.
