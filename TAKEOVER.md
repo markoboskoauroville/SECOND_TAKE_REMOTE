@@ -10,4 +10,4 @@ number); release v<N> is Latest; secret ANDROID_DEBUG_KEYSTORE_B64 keeps updates
 Phone: top bar shows the connection (tap to enter address:port and pairing code; known guides are remembered). Middle: shot
 number, code, title, say text, takes. Bottom, centred: WATCH, LIVE, RECORD/STOP (red with elapsed time), AGAIN, NEXT; SHOTS jumps.
 
-mock/guide.py is a loopback test guide (no recording). Not done in v1: Bonjour discovery (_secondtake._tcp), QR pairing.
+mock/guide.py is a loopback test guide (no recording). v2: no codes; the phone finds the guide itself (last address, 127.0.0.1:8965, Bonjour _secondtake._tcp); long-press the top bar adds an address.

@@ -5,6 +5,8 @@ import android.app.AlertDialog
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -85,7 +87,7 @@ class MainActivity : Activity() {
         // top: connection state
         val bar = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
         top = label(13f, Color.WHITE, true).apply {
-            setPadding(dp(14), dp(8), dp(14), dp(8)); setOnClickListener { connectDialog() }
+            setPadding(dp(14), dp(8), dp(14), dp(8)); setOnLongClickListener { connectDialog(); true }
         }
         modeView = label(24f, grey, true).apply { setPadding(0, dp(8), 0, 0) }
         bar.addView(top); bar.addView(modeView)
@@ -126,20 +128,78 @@ class MainActivity : Activity() {
         again.setOnClickListener { send("again") }
         next.setOnClickListener { send("next") }
 
-        val saved = prefs.getString("current", "") ?: ""
-        if (saved.isNotEmpty()) use(saved, prefs.getString("code:$saved", "") ?: "") else render()
+        render()
+        startDiscovery()
         poll()
         tick()
-        if (saved.isEmpty()) connectDialog()
     }
 
     override fun onDestroy() { running = false; super.onDestroy() }
 
-    private fun use(addr: String, code: String) {
-        guide = Guide(addr, code); shotsFor = -1; shots = emptyList(); status = null; online = false; failure = ""
-        prefs.edit().putString("current", addr).putString("code:$addr", code)
-            .putStringSet("known", (prefs.getStringSet("known", emptySet()) ?: emptySet()) + addr).apply()
+    private fun use(addr: String) {
+        guide = Guide(addr); shotsFor = -1; shots = emptyList(); status = null; online = false; failure = ""
+        prefs.edit().putString("current", addr).apply()
         render()
+    }
+
+    // ---- finding the Mac by itself: last address, USB (127.0.0.1:8965), Bonjour on the Wi-Fi ----
+    private val found = java.util.concurrent.ConcurrentHashMap<String, String>() // address -> name
+    private val nsd by lazy { getSystemService(NSD_SERVICE) as NsdManager }
+    private var offered = false
+
+    private fun startDiscovery() {
+        try {
+            nsd.discoverServices("_secondtake._tcp", NsdManager.PROTOCOL_DNS_SD, object : NsdManager.DiscoveryListener {
+                override fun onDiscoveryStarted(t: String) {}
+                override fun onDiscoveryStopped(t: String) {}
+                override fun onStartDiscoveryFailed(t: String, e: Int) {}
+                override fun onStopDiscoveryFailed(t: String, e: Int) {}
+                override fun onServiceLost(i: NsdServiceInfo) {}
+                @Suppress("DEPRECATION")
+                override fun onServiceFound(i: NsdServiceInfo) {
+                    nsd.resolveService(i, object : NsdManager.ResolveListener {
+                        override fun onResolveFailed(i2: NsdServiceInfo, e: Int) {}
+                        override fun onServiceResolved(i2: NsdServiceInfo) {
+                            val h = i2.host?.hostAddress ?: return
+                            extra.add("$h:${i2.port}")
+                        }
+                    })
+                }
+            })
+        } catch (e: Exception) { }
+    }
+    private val extra = java.util.concurrent.CopyOnWriteArraySet<String>()
+
+    /** Probe every candidate; the ones that answer with "protocol" are Second Take guides. */
+    private fun search() {
+        val cands = LinkedHashSet<String>()
+        prefs.getString("last", null)?.let { cands.add(it) }
+        cands.add("127.0.0.1:8965")
+        cands.addAll(extra)
+        cands.addAll(prefs.getStringSet("added", emptySet()) ?: emptySet())
+        val hits = java.util.concurrent.ConcurrentHashMap<String, String>()
+        val latch = java.util.concurrent.CountDownLatch(cands.size)
+        cands.forEach { a ->
+            Thread {
+                try { hits[a] = Guide(a).status().name.ifEmpty { a } } catch (e: Exception) { }
+                latch.countDown()
+            }.start()
+        }
+        latch.await(4, java.util.concurrent.TimeUnit.SECONDS)
+        ui.post {
+            if (guide != null && online) return@post
+            found.clear(); found.putAll(hits)
+            when {
+                hits.size == 1 -> use(hits.keys.first())
+                hits.size > 1 && !offered -> {
+                    offered = true
+                    val addrs = hits.keys.toList()
+                    AlertDialog.Builder(this).setTitle("Which Mac?")
+                        .setItems(addrs.map { hits[it] ?: it }.toTypedArray()) { _, i -> use(addrs[i]) }
+                        .setOnDismissListener { offered = false }.show()
+                }
+            }
+        }
     }
 
     private fun poll() {
@@ -148,19 +208,24 @@ class MainActivity : Activity() {
             try {
                 val s = g.status()
                 if (s.shots != shotsFor || shots.isEmpty()) { shots = g.shots(); shotsFor = s.shots }
+                prefs.edit().putString("last", g.base).apply()
                 ui.post { status = s; online = true; failure = ""; render() }
             } catch (e: Exception) {
-                val m = if (e is SecurityException) "Pairing code refused" else "No answer"
+                val m = "No answer"
                 ui.post { online = false; failure = m; render() }
             }
         }
+        if (g == null || !online) {
+            if (!searching) { searching = true; Thread { try { search() } finally { searching = false } }.start() }
+        }
         if (running) ui.postDelayed({ poll() }, 1000)
     }
+    private var searching = false
 
     private fun tick() { render(); if (running) ui.postDelayed({ tick() }, 500) }
 
     private fun send(name: String, n: Int? = null) {
-        val g = guide ?: return connectDialog()
+        val g = guide ?: return
         if (name == "record") localRecStart = System.currentTimeMillis()
         io.execute {
             try { g.command(name, n) } catch (e: Exception) { ui.post { failure = "Command failed"; render() } }
@@ -173,7 +238,7 @@ class MainActivity : Activity() {
         val s = status
         val mode = if (online && s != null) s.mode else "offline"
         top.text = when {
-            guide == null -> "NOT CONNECTED  ·  TAP TO CONNECT"
+            guide == null -> "LOOKING FOR THE MAC"
             online -> "CONNECTED  ·  " + (if (s?.name.isNullOrEmpty()) guide!!.base else s!!.name)
             else -> (failure.ifEmpty { "Connecting" }).uppercase() + "  ·  " + guide!!.base
         }
@@ -208,26 +273,18 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this).setTitle("Shots").setItems(items) { _, i -> send("shot", shots[i].n) }.show()
     }
 
+    /** Hidden: long-press the top bar. Adds an address to look at; nothing else to type. */
     private fun connectDialog() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
         val addr = EditText(this).apply {
-            hint = "address:port  (for example 192.168.1.20:8965)"; setSingleLine()
+            hint = "address:port"; setSingleLine()
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-            setText(prefs.getString("current", "") ?: "")
         }
-        val code = EditText(this).apply { hint = "pairing code (if the Mac asks for one)"; setSingleLine() }
-        col.addView(addr); col.addView(code)
-        val known = (prefs.getStringSet("known", emptySet()) ?: emptySet()).sorted()
-        known.forEach { k ->
-            col.addView(Button(this).apply {
-                text = k; isAllCaps = false
-                setOnClickListener { addr.setText(k); code.setText(prefs.getString("code:$k", "") ?: "") }
-            })
-        }
-        AlertDialog.Builder(this).setTitle("Connect to the Second Take guide").setView(col)
-            .setPositiveButton("Connect") { _, _ ->
+        col.addView(addr)
+        AlertDialog.Builder(this).setTitle("Add an address").setView(col)
+            .setPositiveButton("Add") { _, _ ->
                 val a = addr.text.toString().trim().removePrefix("http://").trimEnd('/')
-                if (a.isNotEmpty()) use(a, code.text.toString().trim())
+                if (a.isNotEmpty()) prefs.edit().putStringSet("added", (prefs.getStringSet("added", emptySet()) ?: emptySet()) + a).apply()
             }.setNegativeButton("Cancel", null).show()
     }
 }
