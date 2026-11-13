@@ -41,6 +41,12 @@ class MainActivity : Activity() {
     private var online = false
     private var failure = ""
     private var running = true
+    private var stoppedAt = 0L
+    private val myId by lazy {
+        prefs.getString("id", null) ?: java.util.UUID.randomUUID().toString().also { prefs.edit().putString("id", it).apply() }
+    }
+    private fun newGuide(a: String) = Guide(a, myId, android.os.Build.MODEL)
+    private var busyOwner = ""
     private var localRecStart = 0L
 
     private lateinit var top: TextView
@@ -134,10 +140,13 @@ class MainActivity : Activity() {
         tick()
     }
 
+    override fun onStop() { stoppedAt = System.currentTimeMillis(); super.onStop() }
+    override fun onStart() { super.onStart(); stoppedAt = 0L; busyOwner = "" }
+
     override fun onDestroy() { running = false; super.onDestroy() }
 
     private fun use(addr: String) {
-        guide = Guide(addr); shotsFor = -1; shots = emptyList(); status = null; online = false; failure = ""
+        guide = newGuide(addr); shotsFor = -1; shots = emptyList(); status = null; online = false; failure = ""
         prefs.edit().putString("current", addr).apply()
         render()
     }
@@ -181,7 +190,7 @@ class MainActivity : Activity() {
         val latch = java.util.concurrent.CountDownLatch(cands.size)
         cands.forEach { a ->
             Thread {
-                try { hits[a] = Guide(a).status().name.ifEmpty { a } } catch (e: Exception) { }
+                try { hits[a] = newGuide(a).status().name.ifEmpty { a } } catch (e: BusyException) { busyOwner = e.owner } catch (e: Exception) { }
                 latch.countDown()
             }.start()
         }
@@ -204,12 +213,16 @@ class MainActivity : Activity() {
 
     private fun poll() {
         val g = guide
+        val away = stoppedAt != 0L && System.currentTimeMillis() - stoppedAt > 30000
+        if (away) { if (running) ui.postDelayed({ poll() }, 1000); return }
         if (g != null) io.execute {
             try {
                 val s = g.status()
                 if (s.shots != shotsFor || shots.isEmpty()) { shots = g.shots(); shotsFor = s.shots }
                 prefs.edit().putString("last", g.base).apply()
                 ui.post { status = s; online = true; failure = ""; render() }
+            } catch (e: BusyException) {
+                ui.post { online = false; busyOwner = e.owner; failure = "In use by ${e.owner}"; guide = null; render() }
             } catch (e: Exception) {
                 val m = "No answer"
                 ui.post { online = false; failure = m; render() }
@@ -238,7 +251,7 @@ class MainActivity : Activity() {
         val s = status
         val mode = if (online && s != null) s.mode else "offline"
         top.text = when {
-            guide == null -> "LOOKING FOR THE MAC"
+            guide == null -> if (busyOwner.isNotEmpty()) "IN USE BY ${busyOwner.uppercase()}  ·  LOOKING FOR ANOTHER" else "LOOKING FOR THE MAC"
             online -> "CONNECTED  ·  " + (if (s?.name.isNullOrEmpty()) guide!!.base else s!!.name)
             else -> (failure.ifEmpty { "Connecting" }).uppercase() + "  ·  " + guide!!.base
         }

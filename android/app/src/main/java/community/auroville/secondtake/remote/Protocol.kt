@@ -12,17 +12,24 @@ data class Shot(val n: Int, val title: String, val code: String, val say: String
 data class Status(val name: String, val mode: String, val shot: Int, val shots: Int, val takes: Int, val elapsed: Int)
 
 /** The wire is described in PROTOCOL.md. Plain HTTP, JSON, no codes. */
-class Guide(val base: String) {
+class BusyException(val owner: String) : Exception("in use by $owner")
+
+class Guide(val base: String, private val id: String = "", private val deviceName: String = "") {
     private fun call(method: String, path: String, body: String? = null): String {
         val c = URL("http://$base$path").openConnection() as HttpURLConnection
         try {
             c.requestMethod = method
             c.connectTimeout = 2500
             c.readTimeout = 4000
+            if (id.isNotEmpty()) { c.setRequestProperty("X-Remote-Id", id); c.setRequestProperty("X-Remote-Name", deviceName) }
             if (body != null) {
                 c.doOutput = true
                 c.setRequestProperty("Content-Type", "application/json")
                 c.outputStream.use { it.write(body.toByteArray()) }
+            }
+            if (c.responseCode == 423) {
+                val o = try { JSONObject(c.errorStream.bufferedReader().use { it.readText() }).optString("owner", "another remote") } catch (e: Exception) { "another remote" }
+                throw BusyException(o)
             }
             if (c.responseCode >= 400) throw IllegalStateException("HTTP ${c.responseCode}")
             return c.inputStream.bufferedReader().use { it.readText() }

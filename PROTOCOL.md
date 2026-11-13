@@ -20,3 +20,11 @@ the phone uses `127.0.0.1:PORT`). A guide should listen only where it must (LAN 
 | POST /shot | `{"n":5}` | jump to shot n |
 
 Every POST answers 200 with any JSON, e.g. `{"ok":true}`. The phone polls /status once a second.
+
+## One remote at a time: first come, first served
+
+Every request carries `X-Remote-Id` (a random id the phone makes once) and `X-Remote-Name` (for example "Pixel 7"). The first
+remote whose GET /status reaches a free guide owns it; its one-second /status polling keeps the connection. While an owner has
+asked in the last 5 seconds, any other remote gets `423` with `{"busy":true,"owner":"Pixel 7"}` (on every call), and shows
+"IN USE BY Pixel 7" while it looks for another free guide. A guide with no request for 5 seconds is free again. The app lets go
+by going quiet: after 30 seconds in the background it stops polling.
